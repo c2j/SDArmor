@@ -1,0 +1,254 @@
+{
+  "version": "2.0",
+  "file_types": [
+    {
+      "name": "Java Web Files",
+      "identifiers": [
+        {
+          "type": "extension",
+          "pattern": "\\.(jsp|java)$"
+        },
+        {
+          "type": "content",
+          "pattern": "^<%@\\s*page"
+        }
+      ],
+      "patterns": [
+        {
+          "id": "CWE-434",
+          "description": "Unrestricted Upload of File with Dangerous Type",
+          "severity": "high",
+          "regex": "FileUtils\\.copyFile\\(|MultipartFile|ServletFileUpload"
+        },
+        {
+          "id": "CWE-22",
+          "description": "Path Traversal",
+          "severity": "critical",
+          "regex": "File\\.createTempFile\\s*\\([^)]+\\)|new\\s+File\\s*\\(\\s*[^)]*(request|getParameter)"
+        },
+        {
+          "id": "CWE-89",
+          "description": "SQL Injection",
+          "severity": "critical",
+          "regex": "executeQuery\\s*\\(\\s*\"[^\"]*\\+|createStatement\\(\\)|Statement\\."
+        },
+        {
+          "id": "CWE-78",
+          "description": "OS Command Injection",
+          "severity": "critical",
+          "regex": "Runtime\\.getRuntime\\(\\)\\.exec\\(|ProcessBuilder|System\\.exec"
+        }
+      ]
+    },
+    {
+      "name": "Python Files",
+      "identifiers": [
+        {
+          "type": "extension",
+          "pattern": "\\.py$"
+        },
+        {
+          "type": "content",
+          "pattern": "^#!/usr/bin/env\\s+python|^import\\s+|^from\\s+\\w+\\s+import"
+        }
+      ],
+      "patterns": [
+        {
+          "id": "CWE-79",
+          "description": "Cross-site Scripting (XSS)",
+          "severity": "high",
+          "regex": "render_template\\s*\\([^,]+,[^)]*request\\.form|flask\\.jsonify\\s*\\(\\s*request\\.args"
+        },
+        {
+          "id": "CWE-89",
+          "description": "SQL Injection",
+          "severity": "critical",
+          "regex": "execute\\s*\\(\\s*['\"][^'\"]*\\s*%\\s*|execute\\s*\\(\\s*f['\"]|cursor\\.execute\\s*\\(\\s*[^,)]+\\)"
+        },
+        {
+          "id": "CWE-78",
+          "description": "OS Command Injection",
+          "severity": "critical",
+          "regex": "os\\.system\\s*\\(|subprocess\\.call\\s*\\(|subprocess\\.Popen\\s*\\(|exec\\s*\\("
+        },
+        {
+          "id": "CWE-798",
+          "description": "Use of Hard-coded Credentials",
+          "severity": "medium",
+          "regex": "password\\s*=\\s*['\"][^'\"]+['\"]|passwd\\s*=\\s*['\"][^'\"]+['\"]|pwd\\s*=\\s*['\"][^'\"]+['\"]"
+        }
+      ]
+    },
+    {
+      "name": "JavaScript Files",
+      "identifiers": [
+        {
+          "type": "extension",
+          "pattern": "\\.(js|jsx|ts|tsx)$"
+        },
+        {
+          "type": "content",
+          "pattern": "^import |^const |^let |^var |^function "
+        }
+      ],
+      "patterns": [
+        {
+          "id": "CWE-79",
+          "description": "Cross-site Scripting (XSS)",
+          "severity": "high",
+          "regex": "innerHTML|document\\.write\\(|\\$\\([^)]+\\)\\.html\\(|dangerouslySetInnerHTML"
+        },
+        {
+          "id": "CWE-798",
+          "description": "Use of Hard-coded Credentials",
+          "severity": "medium",
+          "regex": "apiKey\\s*=\\s*['\"][^'\"]{5,}['\"]|password\\s*=\\s*['\"][^'\"]{5,}['\"]|secret\\s*=\\s*['\"][^'\"]{5,}['\"]"
+        },
+        {
+          "id": "CWE-502",
+          "description": "Deserialization of Untrusted Data",
+          "severity": "high",
+          "regex": "JSON\\.parse\\s*\\(|eval\\s*\\("
+        },
+        {
+          "id": "CWE-916",
+          "description": "Use of Password Hash With Insufficient Computational Effort",
+          "severity": "medium",
+          "regex": "\\.md5\\s*\\(|createHash\\s*\\(\\s*['\"]md5['\"]"
+        }
+      ]
+    },
+    {
+      "name": "PHP Files",
+      "identifiers": [
+        {
+          "type": "extension",
+          "pattern": "\\.php$"
+        },
+        {
+          "type": "content",
+          "pattern": "^<\\?php"
+        }
+      ],
+      "patterns": [
+        {
+          "id": "CWE-89",
+          "description": "SQL Injection",
+          "severity": "critical",
+          "regex": "mysql_query\\s*\\(|mysqli_query\\s*\\([^,]+,\\s*['\"][^'\"]*\\$|\\$_GET|\\$_POST"
+        },
+        {
+          "id": "CWE-78",
+          "description": "OS Command Injection",
+          "severity": "critical",
+          "regex": "exec\\s*\\(|shell_exec\\s*\\(|system\\s*\\(|passthru\\s*\\(|`[^`]*\\$"
+        },
+        {
+          "id": "CWE-79",
+          "description": "Cross-site Scripting (XSS)",
+          "severity": "high",
+          "regex": "echo\\s+\\$_GET|echo\\s+\\$_POST|echo\\s+\\$_REQUEST|print\\s+\\$_GET|print\\s+\\$_POST"
+        },
+        {
+          "id": "CWE-434",
+          "description": "Unrestricted File Upload",
+          "severity": "high",
+          "regex": "move_uploaded_file\\s*\\(|file_put_contents\\s*\\([^,]*\\$_FILES"
+        }
+      ]
+    },
+    {
+      "name": "XML Config Files",
+      "identifiers": [
+        {
+          "type": "extension",
+          "pattern": "\\.xml$"
+        },
+        {
+          "type": "content",
+          "pattern": "^<\\?xml\\s+version"
+        }
+      ],
+      "patterns": [
+        {
+          "id": "CWE-611",
+          "description": "XXE (XML External Entity) Injection",
+          "severity": "critical",
+          "regex": "<!ENTITY\\s+\\w+\\s+SYSTEM\\s+[\"']"
+        },
+        {
+          "id": "CWE-614",
+          "description": "Sensitive Cookie Without 'Secure' Flag",
+          "severity": "medium",
+          "regex": "<cookie-config>\\s*(?!.*<secure>true</secure>)"
+        }
+      ]
+    },
+    {
+      "name": "Docker Files",
+      "identifiers": [
+        {
+          "type": "extension",
+          "pattern": "Dockerfile$"
+        },
+        {
+          "type": "content",
+          "pattern": "^FROM\\s+|^RUN\\s+|^ENV\\s+"
+        }
+      ],
+      "patterns": [
+        {
+          "id": "CWE-250",
+          "description": "Execution with Unnecessary Privileges",
+          "severity": "high",
+          "regex": "USER\\s+root"
+        },
+        {
+          "id": "CWE-798",
+          "description": "Use of Hard-coded Credentials",
+          "severity": "medium",
+          "regex": "ENV\\s+\\w*PASS\\w*\\s+[^\\$]|ENV\\s+\\w*SECRET\\w*\\s+[^\\$]|ENV\\s+\\w*KEY\\w*\\s+[^\\$]"
+        }
+      ]
+    },
+    {
+      "name": "C/C++ Files",
+      "identifiers": [
+        {
+          "type": "extension",
+          "pattern": "\\.(c|cpp|h|hpp)$"
+        },
+        {
+          "type": "content",
+          "pattern": "^#include|int\\s+main\\s*\\("
+        }
+      ],
+      "patterns": [
+        {
+          "id": "CWE-120",
+          "description": "Buffer Copy without Checking Size of Input",
+          "severity": "critical",
+          "regex": "strcpy\\s*\\(|strcat\\s*\\(|sprintf\\s*\\("
+        },
+        {
+          "id": "CWE-78",
+          "description": "OS Command Injection",
+          "severity": "critical",
+          "regex": "system\\s*\\(|popen\\s*\\(|exec\\s*\\("
+        },
+        {
+          "id": "CWE-134",
+          "description": "Use of Externally-Controlled Format String",
+          "severity": "high",
+          "regex": "printf\\s*\\([^,]+\\)|fprintf\\s*\\([^,]+,[^,]+\\)"
+        },
+        {
+          "id": "CWE-242",
+          "description": "Use of Inherently Dangerous Function",
+          "severity": "high",
+          "regex": "gets\\s*\\(|scanf\\s*\\(['\"][^%]"
+        }
+      ]
+    }
+  ]
+}
