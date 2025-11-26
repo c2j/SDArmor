@@ -1,6 +1,7 @@
 # Rust specific ignores
 /target/
 /Desktop/target/
+/Desktop/dist/
 **/*.rs.bk
 Cargo.lock
 *.pdb
@@ -37,6 +38,8 @@ venv/
 ENV/
 SC_Server/venv/
 SC_Server/.pyenv/
+SC_Server/instance/
+SC_Server/.env
 
 # IDE specific ignores
 .idea/
@@ -121,8 +124,11 @@ jspm_packages/
 /scans/
 /Desktop/rules/
 /Desktop/reports/
+/Desktop/scans/
 /SC_Server/rules/
 /SC_Server/reports/
+/SC_Server/scans/
+/SC_Server/data/
 
 # Documentation generated files
 /docs/_build/
@@ -132,3 +138,47 @@ jspm_packages/
 # Test files
 /coverage/
 /.nyc_output/
+
+# SD Armor specific ignores
+/specs/
+/design_v2/
+/CLAUDE.md
+/.claude/
+/.root_claude/
+/.specify/
+/.supadoc/
+
+# Compiled files
+*.exe
+*.dll
+*.so
+*.dylib
+*.class
+
+# Package files
+*.deb
+*.rpm
+*.apk
+*.msi
+*.dmg
+
+# Configuration files
+*.config
+*.conf
+*.ini
+
+# Backup files
+*.backup
+*.old
+*.orig
+
+# IDE files
+*.user
+*.sln
+*.csproj
+*.vbproj
+
+# OS generated files
+Thumbs.db
+.DS_Store
+desktop.ini

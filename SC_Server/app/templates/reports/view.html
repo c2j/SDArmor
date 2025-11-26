@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}报告详情 - SDChat 安全扫描器{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/highlight.js/css/github.min.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">报告详情: {{ report.title }}</h1>
+        <div>
+            <a href="{{ url_for('main.reports') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> 返回报告列表
+            </a>
+            <a href="{{ url_for('main.export_report', report_id=report.report_id) }}" class="btn btn-primary">
+                <i class="bi bi-download"></i> 导出报告
+            </a>
+            {% if current_user.is_admin or report.uploaded_by == current_user.id %}
+            <a href="{{ url_for('main.delete_report', report_id=report.report_id) }}" class="btn btn-danger"
+               onclick="return confirm('确定要删除此报告吗？此操作不可撤销。')">
+                <i class="bi bi-trash"></i> 删除
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 报告信息 -->
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">基本信息</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="fw-bold">报告ID:</label>
+                        <p>{{ report.report_id }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">标题:</label>
+                        <p>{{ report.title }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">扫描目标:</label>
+                        <p>{{ report.scan_target }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">创建时间:</label>
+                        <p>{{ report.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">上传用户:</label>
+                        <p>{{ uploader.username if uploader else '未知' }}</p>
+                    </div>
+                    {% if report.summary %}
+                    <div class="mb-3">
+                        <label class="fw-bold">摘要:</label>
+                        <p>{{ report.summary }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">漏洞统计</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">扫描文件数</h5>
+                                    <h2 class="card-text">{{ report.stats.get('scanned_files', 0) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">总漏洞数</h5>
+                                    <h2 class="card-text">{{ total_vulnerabilities }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card mb-3 bg-danger text-white">
+                                <div class="card-body">
+                                    <h5 class="card-title">严重</h5>
+                                    <h2 class="card-text">{{ report.stats.get('critical', 0) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card mb-3 bg-warning">
+                                <div class="card-body">
+                                    <h5 class="card-title">高危</h5>
+                                    <h2 class="card-text">{{ report.stats.get('high', 0) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card mb-3 bg-primary text-white">
+                                <div class="card-body">
+                                    <h5 class="card-title">中危</h5>
+                                    <h2 class="card-text">{{ report.stats.get('medium', 0) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card mb-3 bg-info">
+                                <div class="card-body">
+                                    <h5 class="card-title">低危</h5>
+                                    <h2 class="card-text">{{ report.stats.get('low', 0) }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <h5>扫描时间</h5>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: 100%;"
+                                 aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+                                {{ (report.stats.get('scan_time_ms', 0) / 1000)|round(2) }} 秒
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 漏洞列表 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">漏洞列表</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="vulnerabilitiesTable">
+                    <thead>
+                        <tr>
+                            <th>文件</th>
+                            <th>行号</th>
+                            <th>规则ID</th>
+                            <th>描述</th>
+                            <th>严重性</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if results.findings %}
+                            {% for finding in results.findings %}
+                            <tr>
+                                <td>{{ finding.file }}</td>
+                                <td>{{ finding.line }}</td>
+                                <td><code>{{ finding.rule_id }}</code></td>
+                                <td>{{ finding.description }}</td>
+                                <td>
+                                    {% if finding.severity == 'critical' %}
+                                    <span class="badge bg-danger">严重</span>
+                                    {% elif finding.severity == 'high' %}
+                                    <span class="badge bg-warning text-dark">高危</span>
+                                    {% elif finding.severity == 'medium' %}
+                                    <span class="badge bg-primary">中危</span>
+                                    {% elif finding.severity == 'low' %}
+                                    <span class="badge bg-info text-dark">低危</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-info view-code"
+                                            data-file="{{ finding.file }}"
+                                            data-line="{{ finding.line }}"
+                                            data-code="{{ finding.code|replace('\n', '\\n')|replace('"', '&quot;') }}">
+                                        <i class="bi bi-code-slash"></i> 查看代码
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% elif results.hotspots %}
+                            {% for hotspot in results.hotspots %}
+                            <tr>
+                                <td>{{ hotspot.file_path }}</td>
+                                <td>{{ hotspot.line_number }}</td>
+                                <td><code>{{ hotspot.rule_id }}</code></td>
+                                <td>{{ hotspot.description }}</td>
+                                <td>
+                                    {% if hotspot.severity == 'critical' %}
+                                    <span class="badge bg-danger">严重</span>
+                                    {% elif hotspot.severity == 'high' %}
+                                    <span class="badge bg-warning text-dark">高危</span>
+                                    {% elif hotspot.severity == 'medium' %}
+                                    <span class="badge bg-primary">中危</span>
+                                    {% elif hotspot.severity == 'low' %}
+                                    <span class="badge bg-info text-dark">低危</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-info view-code"
+                                            data-file="{{ hotspot.file_path }}"
+                                            data-line="{{ hotspot.line_number }}"
+                                            data-code="{{ hotspot.code_snippet|replace('\n', '\\n')|replace('"', '&quot;') }}">
+                                        <i class="bi bi-code-slash"></i> 查看代码
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center">未发现漏洞</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 代码查看模态框 -->
+<div class="modal fade" id="codeModal" tabindex="-1" aria-labelledby="codeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="codeModalLabel">代码片段</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="fileInfo"></p>
+                <pre><code id="codeSnippet" class="language-javascript"></code></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/highlight.js/js/highlight.min.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化代码高亮
+    hljs.highlightAll();
+
+    // 代码查看按钮点击事件
+    const viewCodeButtons = document.querySelectorAll('.view-code');
+    viewCodeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const filePath = this.getAttribute('data-file');
+            const lineNumber = this.getAttribute('data-line');
+            const codeSnippet = this.getAttribute('data-code');
+
+            // 处理代码片段，确保正确替换换行符
+            const formattedCode = codeSnippet ? codeSnippet.replace(/\\n/g, '\n') : '无代码片段';
+
+            document.getElementById('fileInfo').textContent = `文件: ${filePath} (行 ${lineNumber})`;
+            document.getElementById('codeSnippet').textContent = formattedCode;
+
+            // 重新应用高亮
+            hljs.highlightElement(document.getElementById('codeSnippet'));
+
+            // 显示模态框
+            const codeModal = new bootstrap.Modal(document.getElementById('codeModal'));
+            codeModal.show();
+        });
+    });
+});
+</script>
+{% endblock %}

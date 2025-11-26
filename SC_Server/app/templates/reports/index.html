@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}扫描报告 - SDChat 安全扫描器{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">扫描报告</h1>
+        <div>
+            <button type="button" class="btn btn-primary" id="refresh-reports">
+                <i class="bi bi-arrow-clockwise"></i> 刷新
+            </button>
+        </div>
+    </div>
+
+    <!-- 过滤器 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">过滤选项</h6>
+        </div>
+        <div class="card-body">
+            <form id="filter-form" method="get">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="start_date" class="form-label">开始日期</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ request.args.get('start_date', '') }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="end_date" class="form-label">结束日期</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ request.args.get('end_date', '') }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="severity" class="form-label">最低严重性</label>
+                        <select class="form-select" id="severity" name="severity">
+                            <option value="">全部</option>
+                            <option value="critical" {% if request.args.get('severity') == 'critical' %}selected{% endif %}>严重</option>
+                            <option value="high" {% if request.args.get('severity') == 'high' %}selected{% endif %}>高危</option>
+                            <option value="medium" {% if request.args.get('severity') == 'medium' %}selected{% endif %}>中危</option>
+                            <option value="low" {% if request.args.get('severity') == 'low' %}selected{% endif %}>低危</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="search" class="form-label">搜索</label>
+                        <input type="text" class="form-control" id="search" name="search" placeholder="标题或目标路径" value="{{ request.args.get('search', '') }}">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">应用过滤器</button>
+                    <a href="{{ url_for('main.reports') }}" class="btn btn-secondary ms-2">重置</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 报告列表 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">扫描报告列表</h6>
+            <span class="badge bg-primary">总计: {{ pagination.total }}</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="reportsTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>标题</th>
+                            <th>扫描目标</th>
+                            <th>创建时间</th>
+                            <th>严重</th>
+                            <th>高危</th>
+                            <th>中危</th>
+                            <th>低危</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr>
+                            <td>{{ report.id }}</td>
+                            <td>{{ report.title }}</td>
+                            <td>{{ report.scan_target }}</td>
+                            <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="text-danger">{{ report.stats.get('critical', 0) }}</td>
+                            <td class="text-warning">{{ report.stats.get('high', 0) }}</td>
+                            <td class="text-primary">{{ report.stats.get('medium', 0) }}</td>
+                            <td class="text-info">{{ report.stats.get('low', 0) }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('main.view_report', report_id=report.report_id) }}" class="btn btn-sm btn-info">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('main.export_report', report_id=report.report_id) }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                    {% if current_user.is_admin or report.uploaded_by == current_user.id %}
+                                    <a href="{{ url_for('main.delete_report', report_id=report.report_id) }}" class="btn btn-sm btn-danger" 
+                                       onclick="return confirm('确定要删除此报告吗？此操作不可撤销。')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分页 -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mt-4">
+                    <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.reports', page=pagination.page-1, **request.args) }}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    
+                    {% for p in range(max(1, pagination.page - 2), min(pagination.pages + 1, pagination.page + 3)) %}
+                    <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.reports', page=p, **request.args) }}">{{ p }}</a>
+                    </li>
+                    {% endfor %}
+                    
+                    <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.reports', page=pagination.page+1, **request.args) }}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('refresh-reports').addEventListener('click', function() {
+    location.reload();
+});
+</script>
+{% endblock %}

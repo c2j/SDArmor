@@ -1,0 +1,235 @@
+#FROM rust:slim
+#FROM uosproject/uos
+#FROM registry.uniontech.com/uos-app/uos-server-20-1070a-rust:1.58.1-amd64
+#FROM ahu37/uos-toolchain
+#FROM ubuntu:20.04
+#FROM alpine:3.22
+#FROM rust:alpine
+#FROM alpine:edge
+FROM macrosan/uos:v20-1070
+#FROM ubuntu:25.04
+
+
+# Install required dependencies
+# Alpine
+# apk ==> yum; apk add ==> yum install -y
+# RUN apk update && apk add  \
+#     musl-dev \
+#     openssl-dev \
+#     pkgconf \
+#     
+# RUN apk add --no-cache \
+#     cargo \
+#     rustup \
+#     gtk+3.0-dev \
+#     # gtk+3.0-static \
+#     glib-dev \
+#     glib-static \
+#     cairo-dev \
+#     cairo-static \
+#     pango-dev \
+#     # pango-static \
+#     # atk-dev \
+#     # atk-static \
+#     # gdk-pixbuf-dev \
+#     # gdk-pixbuf-static \
+#     harfbuzz-dev \
+#     harfbuzz-static \
+#     zlib-dev \
+#     zlib-static \
+#     # libappindicator-dev \
+#     librsvg-dev
+#     # webkit2gtk-dev
+
+# RUN  apk update && apk add  curl 
+# RUN  apk update && apk add  ca-certificates 
+# # Install latest Rust with PATH properly set for the current shell
+# # RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+# #     && . $HOME/.cargo/env \
+# #     && cargo -V
+# # ENV PATH="/root/.cargo/bin:${PATH}"
+
+# #RUN  sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list &&  apt update
+# RUN  DEBIAN_FRONTEND=noninteractive apk add tzdata 
+# RUN  DEBIAN_FRONTEND=noninteractive TZ=Asia/Shanghai apk update && apk add  gtk+3.0-dev  
+# #RUN  apk update && apk add   libappindicator-dev 
+# RUN  apk update && apk add  librsvg-dev 
+# #RUN  apk update && apk add  webkit2gtk-dev 
+# RUN  apk update && apk add  glib-dev sqlite-dev 
+# # RUN  apk update && apk add  librust-atk-sys-dev 
+# # RUN  apk update && apk add  musl-tools 
+# RUN  apk update && apk add  wget perl build-base musl-dev make 
+# RUN  apk update && apk add  linux-headers 
+# RUN  apk update && apk add  libc-dev 
+
+# Ubuntu
+# Install required dependencies
+#RUN  sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list &&  apt update
+RUN yum update
+RUN yum update && yum install gtk3
+
+
+RUN  yum update && yum install -y  curl 
+RUN  yum update && yum install -y  ca-certificates 
+
+
+RUN  DEBIAN_FRONTEND=noninteractive yum update && yum install -y  tzdata 
+RUN  DEBIAN_FRONTEND=noninteractive TZ=Asia/Shanghai yum update && yum install -y  gtk3
+RUN  yum update && yum install -y  libappindicator-gtk3
+RUN  yum update && yum install -y  librsvg2
+# RUN  yum update && yum install -y  webkit2gtk
+RUN  yum update && yum install -y  glib
+# RUN  yum update && yum install -y rust
+RUN  yum update && yum install -y  bison unzip zip musl-gcc wget git
+  
+
+
+# RUN wget https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+#     tar xzf openssl-1.1.1w.tar.gz && \
+#     cd openssl-1.1.1w && \
+#     # 指定正确的目标平台为 linux-x86_64
+#     # 禁用安全内存功能（解决缺少linux/mman.h的问题）
+#     CC="gcc -fPIE -pie" ./Configure \
+#       no-shared \
+#       no-zlib \
+#       no-async \
+#       no-engine \
+#       no-secure-memory \
+#       -fPIC \
+#       --prefix=/usr/local/musl \
+#       linux-x86_64 && \
+#     make depend && \
+#     make -j$(nproc) && \
+#     make install && \
+#     cd .. && \
+#     rm -rf openssl-1.1.1w*
+
+# Install latest Rust with PATH properly set for the current shell
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && . $HOME/.cargo/env \
+    && cargo -V
+#ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN yum update && yum install -y \
+    openssl-devel \
+    python3 \
+    gtk3-devel \
+    gdk-pixbuf2-devel \
+    harfbuzz-devel \
+    atk-devel \
+    cairo-devel \
+    glib2-devel \
+    pango-devel \
+    pkg-config \
+    && yum groupinstall -y "Development Tools"
+    
+RUN yum install -y clang
+
+RUN wget https://www.openssl.org/source/openssl-3.0.9.tar.gz && \
+    tar xzf openssl-3.0.9.tar.gz && \
+    cd openssl-3.0.9 && \
+    CC="gcc" ./Configure \
+      --prefix=/usr/local/musl \
+      --libdir=lib \
+      no-shared \
+      no-zlib \
+      no-async \
+      linux-x86_64 && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf openssl-3.0.9*
+
+
+# Initialize rustup and install the default toolchain
+# RUN rustup-init -y --default-toolchain stable
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+
+
+RUN  wget https://download.gnome.org/sources/gtk+/3.24/gtk+-3.24.0.tar.xz  && \
+tar xf gtk+-3.24.0.tar.xz  && \
+cd gtk+-3.24.0 && \
+./configure --enable-static \
+    --enable-all \
+    --with-included-immodules && \
+make  && \
+make install
+
+# 静态编译 Cairo
+RUN wget https://www.cairographics.org/releases/cairo-1.16.0.tar.xz && \
+tar xf cairo-1.16.0.tar.xz && \
+cd cairo-1.16.0 && \
+./configure --enable-static --enable-all && \
+make && \
+make install
+
+RUN pip3 install meson==0.60.0 && \
+pip3 install ninja && \
+echo 'export PATH=$PATH:~/.local/bin' >> ~/.bashrc && \
+source ~/.bashrc
+
+RUN wget https://download.gnome.org/sources/pango/1.50/pango-1.50.14.tar.xz && \
+tar xf pango-1.50.14.tar.xz && \
+cd pango-1.50.14 && \
+meson setup build \
+  --default-library=static \
+  -Dintrospection=disabled \
+  -Dgtk_doc=false \
+  -Dinstall-tests=false \
+  --prefix=/usr/local && \
+ninja -C build && \
+ninja -C build install
+
+
+RUN wget https://github.com/harfbuzz/harfbuzz/releases/download/2.9.1/harfbuzz-2.9.1.tar.xz && \
+tar xf harfbuzz-2.9.1.tar.xz && \
+cd harfbuzz-2.9.1 && \
+./configure --enable-static --enable-all && \
+make && \
+make install
+
+RUN yum install -y ninja-build && \
+wget https://download.gnome.org/sources/atk/2.38/atk-2.38.0.tar.xz && \
+tar xf atk-2.38.0.tar.xz && \
+cd atk-2.38.0 && \
+meson setup build-static \
+  --default-library=static \
+  -Dintrospection=false && \
+ninja -C build-static && \
+ninja -C build-static install
+
+RUN wget https://download.gnome.org/sources/gdk-pixbuf/2.42/gdk-pixbuf-2.42.10.tar.xz && \
+tar xf gdk-pixbuf-2.42.10.tar.xz && \
+cd gdk-pixbuf-2.42.10 && \
+meson setup build-static \
+    --default-library=static \
+    -Dbuiltin_loaders=all \
+    -Ddocs=false \
+    -Dman=false \
+    -Dinstalled_tests=false && \
+ninja -C build-static && \
+ninja -C build-static install
+
+RUN ldd --version
+# Build the application
+RUN rustup target add x86_64-unknown-linux-musl x86_64-unknown-linux-gnu
+# RUSTFLAGS="-C target-feature=+crt-static"
+
+WORKDIR /app1
+RUN ldd --version
+#RUN cargo clean
+COPY . .
+RUN cargo clean
+# PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_STATIC=1  PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/x86_64-alpine-linux-musl/pkgconfig      GLIB_STATIC=1  OPENSSL_STATIC=1 OPENSSL_DIR=/usr/local/musl RUSTFLAGS="-C target-feature=+crt-static"  cargo build  --release --target x86_64-unknown-linux-gnu
+RUN PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_STATIC=1 \
+    PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/x86_64-alpine-linux-musl/pkgconfig  \
+    #GLIB_STATIC=1 \
+    OPENSSL_STATIC=1 \
+    OPENSSL_DIR=/usr/local/musl \
+    #RUSTFLAGS="-C target-feature=+crt-static" \
+    cargo build --release --target x86_64-unknown-linux-gnu
+
+# Create the output directory
+RUN mkdir -p /output
+RUN cp target/x86_64-unknown-linux-gnu/release/seeu_desktop /output/

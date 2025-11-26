@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+
+{% block title %}编辑规则集 - SDChat 安全扫描器{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">编辑规则集: {{ ruleset.name }}</h1>
+        <div>
+            <a href="{{ url_for('main.view_ruleset', ruleset_id=ruleset.id) }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> 返回详情
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- 基本信息编辑 -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">基本信息</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" class="needs-validation" novalidate>
+                        <div class="mb-3">
+                            <label for="name" class="form-label">规则集名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ ruleset.name }}" required>
+                            <div class="invalid-feedback">
+                                请输入规则集名称
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="version" class="form-label">版本号</label>
+                            <input type="text" class="form-control" id="version" name="version" value="{{ ruleset.version }}" readonly>
+                            <div class="form-text">
+                                版本号不可修改
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">描述</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ ruleset.description or '' }}</textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> 保存更改
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- 文件类型和规则列表 -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">文件类型和规则</h6>
+                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addFileTypeModal">
+                        <i class="bi bi-plus"></i> 添加文件类型
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="fileTypesAccordion">
+                        {% for file_type in ruleset.file_types %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading{{ loop.index }}">
+                                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" 
+                                        aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" 
+                                        aria-controls="collapse{{ loop.index }}">
+                                    <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                        <span><strong>{{ file_type.name }}</strong> ({{ file_type.patterns|length }} 规则)</span>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="editFileType({{ file_type.id }})" title="编辑文件类型">
+                                                <i class="bi bi-pencil"></i> 编辑
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteFileType({{ file_type.id }})" title="删除文件类型">
+                                                <i class="bi bi-trash"></i> 删除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="collapse{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                                 aria-labelledby="heading{{ loop.index }}" data-bs-parent="#fileTypesAccordion">
+                                <div class="accordion-body">
+                                    <!-- 文件标识符 -->
+                                    <div class="mb-3">
+                                        <h6>文件标识符:</h6>
+                                        {% for identifier in file_type.identifiers %}
+                                        <span class="badge bg-secondary me-1">{{ identifier.type }}: {{ identifier.pattern }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <!-- 规则列表 -->
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6>规则模式:</h6>
+                                        <button type="button" class="btn btn-sm btn-outline-success" onclick="addPattern({{ file_type.id }})">
+                                            <i class="bi bi-plus"></i> 添加规则
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>描述</th>
+                                                    <th>严重性</th>
+                                                    <th>正则表达式</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for pattern in file_type.patterns %}
+                                                <tr data-pattern-id="{{ pattern.id }}">
+                                                    <td><code>{{ pattern.id_code }}</code></td>
+                                                    <td>{{ pattern.description }}</td>
+                                                    <td>
+                                                        <span class="badge bg-{% if pattern.severity == 'critical' %}danger{% elif pattern.severity == 'high' %}warning{% elif pattern.severity == 'medium' %}info{% else %}secondary{% endif %}">
+                                                            {{ pattern.severity }}
+                                                        </span>
+                                                    </td>
+                                                    <td><code class="small">{{ pattern.regex[:50] }}{% if pattern.regex|length > 50 %}...{% endif %}</code></td>
+                                                    <td>
+                                                        <div class="btn-group btn-group-sm">
+                                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="editPattern({{ pattern.id }})" title="编辑规则">
+                                                                <i class="bi bi-pencil"></i> 编辑
+                                                            </button>
+                                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="deletePattern({{ pattern.id }})" title="删除规则">
+                                                                <i class="bi bi-trash"></i> 删除
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- 规则集统计 -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">规则集统计</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="text-primary">{{ ruleset.file_types|length }}</h4>
+                                <small>文件类型</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">{{ total_patterns }}</h4>
+                            <small>规则总数</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 编辑提示 -->
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">编辑提示</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0 small">
+                        <li>修改规则集信息后需要点击"保存更改"</li>
+                        <li>添加或删除规则会立即生效</li>
+                        <li>正则表达式需要正确转义</li>
+                        <li>建议在修改前导出备份</li>
+                        <li>修改活跃规则集会影响正在进行的扫描</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加文件类型模态框 -->
+<div class="modal fade" id="addFileTypeModal" tabindex="-1" aria-labelledby="addFileTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addFileTypeModalLabel">添加文件类型</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addFileTypeForm">
+                    <div class="mb-3">
+                        <label for="fileTypeName" class="form-label">文件类型名称</label>
+                        <input type="text" class="form-control" id="fileTypeName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fileTypeIdentifiers" class="form-label">文件标识符 (JSON格式)</label>
+                        <textarea class="form-control" id="fileTypeIdentifiers" rows="4" placeholder='[{"type": "extension", "pattern": "\\.js$"}]' required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveFileType()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 全局变量
+const API_BASE = '/api/rules';
+const RULESET_ID = {{ ruleset.id }};
+
+// 工具函数
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+
+    // 自动消失
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+function makeRequest(url, options = {}) {
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'  // 包含session cookies
+    };
+
+    return fetch(url, { ...defaultOptions, ...options })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        });
+}
+
+// 文件类型管理
+function editFileType(fileTypeId) {
+    // 获取当前文件类型信息
+    const fileTypeElement = document.querySelector(`[data-file-type-id="${fileTypeId}"]`);
+    if (!fileTypeElement) {
+        showAlert('找不到文件类型信息', 'error');
+        return;
+    }
+
+    // 这里可以实现编辑模态框
+    showAlert('文件类型编辑功能开发中', 'warning');
+}
+
+function deleteFileType(fileTypeId) {
+    if (!confirm('确定要删除这个文件类型吗？这将同时删除其下的所有规则。')) {
+        return;
+    }
+
+    makeRequest(`${API_BASE}/file-types/${fileTypeId}`, {
+        method: 'DELETE'
+    })
+    .then(data => {
+        showAlert(data.message, 'success');
+        // 刷新页面
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        showAlert(error.error || '删除失败', 'danger');
+    });
+}
+
+function saveFileType() {
+    const name = document.getElementById('fileTypeName').value.trim();
+    const identifiersText = document.getElementById('fileTypeIdentifiers').value.trim();
+
+    if (!name || !identifiersText) {
+        showAlert('请填写所有必需字段', 'warning');
+        return;
+    }
+
+    let identifiers;
+    try {
+        identifiers = JSON.parse(identifiersText);
+        if (!Array.isArray(identifiers)) {
+            throw new Error('标识符必须是数组格式');
+        }
+    } catch (e) {
+        showAlert('文件标识符JSON格式错误: ' + e.message, 'danger');
+        return;
+    }
+
+    const data = {
+        ruleset_id: RULESET_ID,
+        name: name,
+        identifiers: identifiers
+    };
+
+    makeRequest(`${API_BASE}/file-types`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        showAlert(response.message, 'success');
+        bootstrap.Modal.getInstance(document.getElementById('addFileTypeModal')).hide();
+        // 刷新页面
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        showAlert(error.error || '保存失败', 'danger');
+    });
+}
+
+// 规则模式管理
+function addPattern(fileTypeId) {
+    // 创建添加规则的模态框
+    const modalHtml = `
+        <div class="modal fade" id="addPatternModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">添加规则</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addPatternForm">
+                            <div class="mb-3">
+                                <label for="patternId" class="form-label">规则ID</label>
+                                <input type="text" class="form-control" id="patternId" required
+                                       placeholder="例如: JS-001">
+                            </div>
+                            <div class="mb-3">
+                                <label for="patternDescription" class="form-label">描述</label>
+                                <input type="text" class="form-control" id="patternDescription" required
+                                       placeholder="例如: 不安全的eval函数使用">
+                            </div>
+                            <div class="mb-3">
+                                <label for="patternSeverity" class="form-label">严重性</label>
+                                <select class="form-select" id="patternSeverity" required>
+                                    <option value="">选择严重性级别</option>
+                                    <option value="critical">Critical (严重)</option>
+                                    <option value="high">High (高)</option>
+                                    <option value="medium">Medium (中)</option>
+                                    <option value="low">Low (低)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="patternRegex" class="form-label">正则表达式</label>
+                                <textarea class="form-control" id="patternRegex" rows="3" required
+                                          placeholder="例如: eval\\s*\\("></textarea>
+                                <div class="form-text">注意正确转义特殊字符</div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="savePattern(${fileTypeId})">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 移除已存在的模态框
+    const existingModal = document.getElementById('addPatternModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // 添加新模态框
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('addPatternModal'));
+    modal.show();
+}
+
+function savePattern(fileTypeId) {
+    const id_code = document.getElementById('patternId').value.trim();
+    const description = document.getElementById('patternDescription').value.trim();
+    const severity = document.getElementById('patternSeverity').value;
+    const regex = document.getElementById('patternRegex').value.trim();
+
+    if (!id_code || !description || !severity || !regex) {
+        showAlert('请填写所有必需字段', 'warning');
+        return;
+    }
+
+    const data = {
+        file_type_id: fileTypeId,
+        id_code: id_code,
+        description: description,
+        severity: severity,
+        regex: regex
+    };
+
+    makeRequest(`${API_BASE}/patterns`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        showAlert(response.message, 'success');
+        bootstrap.Modal.getInstance(document.getElementById('addPatternModal')).hide();
+        // 刷新页面
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        showAlert(error.error || '保存失败', 'danger');
+    });
+}
+
+function editPattern(patternId) {
+    // 获取当前规则信息
+    const row = document.querySelector(`tr[data-pattern-id="${patternId}"]`);
+    if (!row) {
+        showAlert('找不到规则信息', 'error');
+        return;
+    }
+
+    const cells = row.querySelectorAll('td');
+    const currentId = cells[0].textContent.trim();
+    const currentDescription = cells[1].textContent.trim();
+    const currentSeverity = cells[2].querySelector('.badge').textContent.trim();
+    const currentRegex = cells[3].textContent.trim();
+
+    // 创建编辑模态框
+    const modalHtml = `
+        <div class="modal fade" id="editPatternModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">编辑规则</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editPatternForm">
+                            <div class="mb-3">
+                                <label for="editPatternId" class="form-label">规则ID</label>
+                                <input type="text" class="form-control" id="editPatternId" required
+                                       value="${currentId}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editPatternDescription" class="form-label">描述</label>
+                                <input type="text" class="form-control" id="editPatternDescription" required
+                                       value="${currentDescription}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editPatternSeverity" class="form-label">严重性</label>
+                                <select class="form-select" id="editPatternSeverity" required>
+                                    <option value="critical" ${currentSeverity === 'critical' ? 'selected' : ''}>Critical (严重)</option>
+                                    <option value="high" ${currentSeverity === 'high' ? 'selected' : ''}>High (高)</option>
+                                    <option value="medium" ${currentSeverity === 'medium' ? 'selected' : ''}>Medium (中)</option>
+                                    <option value="low" ${currentSeverity === 'low' ? 'selected' : ''}>Low (低)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editPatternRegex" class="form-label">正则表达式</label>
+                                <textarea class="form-control" id="editPatternRegex" rows="3" required>${currentRegex}</textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="updatePattern(${patternId})">更新</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 移除已存在的模态框
+    const existingModal = document.getElementById('editPatternModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // 添加新模态框
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('editPatternModal'));
+    modal.show();
+}
+
+function updatePattern(patternId) {
+    const id_code = document.getElementById('editPatternId').value.trim();
+    const description = document.getElementById('editPatternDescription').value.trim();
+    const severity = document.getElementById('editPatternSeverity').value;
+    const regex = document.getElementById('editPatternRegex').value.trim();
+
+    if (!id_code || !description || !severity || !regex) {
+        showAlert('请填写所有必需字段', 'warning');
+        return;
+    }
+
+    const data = {
+        id_code: id_code,
+        description: description,
+        severity: severity,
+        regex: regex
+    };
+
+    makeRequest(`${API_BASE}/patterns/${patternId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        showAlert(response.message, 'success');
+        bootstrap.Modal.getInstance(document.getElementById('editPatternModal')).hide();
+        // 刷新页面
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        showAlert(error.error || '更新失败', 'danger');
+    });
+}
+
+function deletePattern(patternId) {
+    if (!confirm('确定要删除这个规则吗？')) {
+        return;
+    }
+
+    makeRequest(`${API_BASE}/patterns/${patternId}`, {
+        method: 'DELETE'
+    })
+    .then(data => {
+        showAlert(data.message, 'success');
+        // 刷新页面
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(error => {
+        showAlert(error.error || '删除失败', 'danger');
+    });
+}
+
+// 表单验证
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('.needs-validation');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        });
+    });
+});
+</script>
+{% endblock %}

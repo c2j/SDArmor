@@ -16,6 +16,17 @@ impl Default for ActiveTab {
     }
 }
 
+/// 上传对话框数据
+#[derive(Debug, Default)]
+pub struct UploadDialogData {
+    pub entry_index: usize,
+    pub report_path: Option<PathBuf>,
+    pub application_name: String,
+    pub uploader_name: String,
+    pub rule_version: String,
+    pub notes: String,
+}
+
 /// Stores the UI state of the application
 #[derive(Debug)]
 pub struct UiState {
@@ -25,6 +36,9 @@ pub struct UiState {
     pub server_url: String,
     pub show_advanced_options: bool,
     pub scan_result_filter: ScanResultFilter,
+    // 上传对话框相关
+    pub show_upload_dialog: bool,
+    pub upload_dialog_data: UploadDialogData,
 }
 
 impl Default for UiState {
@@ -36,6 +50,8 @@ impl Default for UiState {
             server_url: "https://rules.sdchat-scanner.com".to_string(),
             show_advanced_options: false,
             scan_result_filter: ScanResultFilter::default(),
+            show_upload_dialog: false,
+            upload_dialog_data: UploadDialogData::default(),
         }
     }
 }
@@ -72,24 +88,24 @@ pub mod helpers {
         let rect = ui.available_rect_before_wrap();
         let width = rect.width();
         let height = 20.0;
-        
+
         let bar_rect = egui::Rect::from_min_size(
             rect.min,
             egui::vec2(width * progress.clamp(0.0, 1.0), height),
         );
-        
+
         ui.painter().rect_filled(
             egui::Rect::from_min_size(rect.min, egui::vec2(width, height)),
             3.0,
             Color32::from_gray(40),
         );
-        
+
         ui.painter().rect_filled(
             bar_rect,
             3.0,
             Color32::from_rgb(50, 150, 255),
         );
-        
+
         if let Some(text) = text {
             let text_pos = rect.min + egui::vec2(width / 2.0, height / 2.0);
             ui.painter().text(
@@ -100,14 +116,14 @@ pub mod helpers {
                 Color32::WHITE,
             );
         }
-        
+
         ui.add_space(height + 4.0);
     }
-    
+
     pub fn file_path_view(ui: &mut Ui, path: &PathBuf) {
         let path_str = path.to_string_lossy();
         let parts: Vec<&str> = path_str.split('/').collect();
-        
+
         ui.horizontal(|ui| {
             for (i, part) in parts.iter().enumerate() {
                 if i > 0 {

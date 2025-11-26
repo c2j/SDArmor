@@ -1,0 +1,18 @@
+This is a placeholder file. 
+
+In a real application, you would replace this with actual icon files in PNG format.
+Recommended icon sizes:
+- 16x16
+- 32x32
+- 64x64
+- 128x128
+- 256x256
+- 512x512
+
+For example:
+- app_icon_16.png
+- app_icon_32.png
+- app_icon_64.png
+- app_icon_128.png
+- app_icon_256.png
+- app_icon_512.png

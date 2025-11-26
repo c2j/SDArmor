@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SDChat 安全扫描器{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/css/bootstrap-icons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="wrapper">
+        <!-- 侧边栏 -->
+        {% if current_user.is_authenticated %}
+        <nav id="sidebar" class="bg-dark text-light">
+            <div class="sidebar-header">
+                <h3>SDChat 安全扫描器</h3>
+            </div>
+
+            <ul class="list-unstyled components">
+                <li class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+                    <a href="{{ url_for('main.dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> 仪表板
+                    </a>
+                </li>
+                <li class="{% if 'rules' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('main.rules') }}">
+                        <i class="bi bi-shield-check"></i> 规则管理
+                    </a>
+                </li>
+                <li class="{% if 'reports' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('main.reports') }}">
+                        <i class="bi bi-file-earmark-text"></i> 扫描报告
+                    </a>
+                </li>
+                {% if current_user.is_admin %}
+                <li class="{% if 'users' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('main.users') }}">
+                        <i class="bi bi-people"></i> 用户管理
+                    </a>
+                </li>
+                
+                {% endif %}
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="bi bi-person-circle"></i>
+                    <span>{{ current_user.username }}</span>
+                </div>
+                <a href="{{ url_for('main.logout') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-box-arrow-right"></i> 退出
+                </a>
+            </div>
+        </nav>
+        {% endif %}
+
+        <!-- 页面内容 -->
+        <div id="content" class="{% if not current_user.is_authenticated %}w-100{% endif %}">
+            {% if current_user.is_authenticated %}
+            <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                <div class="container-fluid">
+                    <button type="button" id="sidebarCollapse" class="btn btn-info" title="切换侧边栏">
+                        <i class="bi bi-list"></i> 菜单
+                    </button>
+                    <div class="ms-auto d-flex">
+                        <div class="navbar-text me-3">
+                            <i class="bi bi-clock"></i> 
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            {% endif %}
+
+            <div class="container-fluid py-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='vendor/jquery/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

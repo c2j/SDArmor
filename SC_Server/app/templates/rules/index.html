@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}规则管理 - SDChat 安全扫描器{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">规则管理</h1>
+        {% if current_user.is_admin %}
+        <div class="btn-group">
+            <a href="{{ url_for('main.import_rules') }}" class="btn btn-primary">
+                <i class="bi bi-upload"></i> 导入规则集
+            </a>
+            <a href="{{ url_for('main.download_sample_rules') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-download"></i> 下载示例
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 规则集列表 -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">规则集列表</h6>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-rules">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="rulesTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>名称</th>
+                            <th>版本</th>
+                            <th>文件类型</th>
+                            <th>规则数量</th>
+                            <th>状态</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ruleset in rulesets %}
+                        <tr class="{% if ruleset.is_active %}table-success{% endif %}">
+                            <td>{{ ruleset.id }}</td>
+                            <td>{{ ruleset.name }}</td>
+                            <td>{{ ruleset.version }}</td>
+                            <td>{{ ruleset.file_types_count }}</td>
+                            <td>{{ ruleset.patterns_count }}</td>
+                            <td>
+                                {% if ruleset.is_active %}
+                                <span class="badge bg-success">活跃</span>
+                                {% else %}
+                                <span class="badge bg-secondary">非活跃</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ ruleset.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('main.view_ruleset', ruleset_id=ruleset.id) }}" class="btn btn-sm btn-info" title="查看详情">
+                                        <i class="bi bi-eye"></i> 查看
+                                    </a>
+                                    {% if current_user.is_admin %}
+                                        <a href="{{ url_for('main.edit_ruleset', ruleset_id=ruleset.id) }}" class="btn btn-sm btn-warning" title="编辑规则集">
+                                            <i class="bi bi-pencil"></i> 编辑
+                                        </a>
+                                        {% if not ruleset.is_active %}
+                                        <a href="{{ url_for('main.activate_ruleset', ruleset_id=ruleset.id) }}" class="btn btn-sm btn-success" title="激活规则集">
+                                            <i class="bi bi-check-circle"></i> 激活
+                                        </a>
+                                        {% endif %}
+                                        <a href="{{ url_for('main.export_ruleset', ruleset_id=ruleset.id) }}" class="btn btn-sm btn-primary" title="导出规则集">
+                                            <i class="bi bi-download"></i> 导出
+                                        </a>
+                                        {% if not ruleset.is_active %}
+                                        <a href="{{ url_for('main.delete_ruleset', ruleset_id=ruleset.id) }}" class="btn btn-sm btn-danger" title="删除规则集"
+                                           onclick="return confirm('确定要删除此规则集吗？此操作不可撤销。')">
+                                            <i class="bi bi-trash"></i> 删除
+                                        </a>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 活跃规则集信息 -->
+    {% if active_ruleset %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">活跃规则集: {{ active_ruleset.name }} (v{{ active_ruleset.version }})</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-header">规则统计</div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <p><strong>文件类型:</strong> {{ active_ruleset.file_types_count }}</p>
+                                    <p><strong>总规则数:</strong> {{ active_ruleset.patterns_count }}</p>
+                                </div>
+                                <div class="col-6">
+                                    <p><strong>创建时间:</strong> {{ active_ruleset.created_at.strftime('%Y-%m-%d') }}</p>
+                                    <p><strong>更新时间:</strong> {{ active_ruleset.updated_at.strftime('%Y-%m-%d') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">严重性分布</div>
+                        <div class="card-body text-center">
+                            <div style="width: 50%; height: 100px; margin: 0 auto;">
+                                <canvas id="severityDistribution"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/chart.js/js/chart.min.js') }}"></script>
+<script>
+{% if active_ruleset %}
+// 严重性分布图
+const severityCtx = document.getElementById('severityDistribution').getContext('2d');
+const severityChart = new Chart(severityCtx, {
+    type: 'pie',
+    data: {
+        labels: ['严重', '高危', '中危', '低危'],
+        datasets: [{
+            data: [
+                {{ active_stats.critical }},
+                {{ active_stats.high }},
+                {{ active_stats.medium }},
+                {{ active_stats.low }}
+            ],
+            backgroundColor: [
+                '#dc3545',
+                '#ffc107',
+                '#0d6efd',
+                '#0dcaf0'
+            ],
+            hoverOffset: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: {
+                    font: {
+                        size: 10
+                    }
+                }
+            }
+        }
+    }
+});
+{% endif %}
+
+// 刷新按钮
+document.getElementById('refresh-rules').addEventListener('click', function() {
+    location.reload();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}仪表板 - SDChat 安全扫描器{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/chart.js/css/chart.min.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4">系统仪表板</h1>
+
+    <!-- 状态卡片 -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                总报告数</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_reports }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-file-earmark-text fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                活跃规则集</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_ruleset_name }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-shield-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                规则总数</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_patterns }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-list-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                注册用户</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-people fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表 -->
+    <div class="row">
+        <!-- 漏洞严重性分布 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">漏洞严重性分布</h6>
+                </div>
+                <div class="card-body text-center">
+                    <div class="chart-pie" style="width: 50%; height: 150px; margin: 0 auto;">
+                        <canvas id="severityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近报告活动 -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">最近报告活动</h6>
+                </div>
+                <div class="card-body text-center">
+                    <div class="chart-bar" style="width: 50%; height: 150px; margin: 0 auto;">
+                        <canvas id="reportsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最近报告 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">最近报告</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>标题</th>
+                                    <th>扫描目标</th>
+                                    <th>创建时间</th>
+                                    <th>严重</th>
+                                    <th>高危</th>
+                                    <th>中危</th>
+                                    <th>低危</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in recent_reports %}
+                                <tr>
+                                    <td>{{ report.id }}</td>
+                                    <td>{{ report.title }}</td>
+                                    <td>{{ report.scan_target }}</td>
+                                    <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td class="text-danger">{{ report.stats.critical or 0 }}</td>
+                                    <td class="text-warning">{{ report.stats.high or 0 }}</td>
+                                    <td class="text-primary">{{ report.stats.medium or 0 }}</td>
+                                    <td class="text-info">{{ report.stats.low or 0 }}</td>
+                                    <td>
+                                        <a href="{{ url_for('main.view_report', report_id=report.report_id) }}" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/chart.js/js/chart.min.js') }}"></script>
+<script>
+// 漏洞严重性分布图
+const severityCtx = document.getElementById('severityChart').getContext('2d');
+const severityChart = new Chart(severityCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['严重', '高危', '中危', '低危'],
+        datasets: [{
+            data: [
+                {{ severity_stats.critical }},
+                {{ severity_stats.high }},
+                {{ severity_stats.medium }},
+                {{ severity_stats.low }}
+            ],
+            backgroundColor: [
+                '#dc3545',
+                '#ffc107',
+                '#0d6efd',
+                '#0dcaf0'
+            ],
+            hoverOffset: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    font: {
+                        size: 10
+                    }
+                }
+            }
+        }
+    }
+});
+
+// 最近报告活动图
+const reportsCtx = document.getElementById('reportsChart').getContext('2d');
+const reportsChart = new Chart(reportsCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ report_dates|safe }},
+        datasets: [{
+            label: '报告数量',
+            data: {{ report_counts|safe }},
+            backgroundColor: '#4e73df',
+            borderColor: '#4e73df',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0,
+                    font: {
+                        size: 10
+                    }
+                }
+            },
+            x: {
+                ticks: {
+                    font: {
+                        size: 10
+                    }
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                labels: {
+                    font: {
+                        size: 10
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

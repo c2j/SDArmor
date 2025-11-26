@@ -1,39 +1,157 @@
-# SDChat Security Scanner Desktop Client
+# SDChat 安全扫描器桌面客户端
 
-## Overview
+## 概述
 
-The SDChat Security Scanner is a high-performance security vulnerability scanning tool designed to detect potential security issues in source code. This desktop client provides a graphical user interface for running scans, viewing results, and managing security rules.
+SDChat 安全扫描器是一款高性能的安全漏洞扫描工具，专为检测源代码中的潜在安全问题而设计。这个桌面客户端提供了图形用户界面，用于运行扫描、查看结果和管理安全规则。
 
-## Features
+## 基于Rust的原生界面实现
 
-- **Interactive 3D visualization** of vulnerability hotspots
-- **Real-time scanning** with progress monitoring
-- **Rule-based detection** of security vulnerabilities
-- **Multi-threaded scanning engine** for high performance
-- **Detailed reports** with code snippets and severity information
-- **Cross-platform support** for Windows, macOS, and Linux
+SDChat桌面客户端采用Rust语言开发，使用egui和eframe框架构建原生跨平台图形界面，具有以下特点：
 
-## Requirements
+- **高性能渲染**：利用平台原生图形API（macOS上的Metal，Linux/Windows上的Vulkan）
+- **响应式布局**：自适应不同屏幕尺寸和分辨率
+- **原生控件**：使用平台原生风格的UI组件，提供一致的用户体验
+- **低资源占用**：相比Electron等基于Web技术的解决方案，具有更低的内存和CPU占用
 
-- Rust 1.70.0 or later
-- Platform-specific dependencies for GUI rendering (Metal on macOS, Vulkan on Linux/Windows)
-- Optional: Hyperscan library for regex acceleration
+### 界面架构
 
-## Installation
+```
++------------------------------------------+
+|                顶部菜单栏                 |
++--------+-------------------------------+
+|        |                               |
+|        |                               |
+|        |                               |
+| 导航栏  |           主内容区域           |
+|        |                               |
+|        |                               |
+|        |                               |
++--------+-------------------------------+
+|              底部状态栏                 |
++------------------------------------------+
+```
 
-### Install Rust
+### 主要界面组件
 
-If you don't have Rust installed, you can install it using rustup:
+1. **扫描配置界面**
+   ```
+   +----------------------------------+
+   | 扫描配置                          |
+   +----------------------------------+
+   | 目标路径: [选择目录]              |
+   | 已选择: /path/to/project         |
+   +----------------------------------+
+   | 扫描规则                          |
+   | [✓] 规则1: SQL注入检测            |
+   | [✓] 规则2: XSS漏洞检测            |
+   | [ ] 规则3: 敏感信息泄露           |
+   | [更新规则]                        |
+   +----------------------------------+
+   | [开始扫描]                        |
+   +----------------------------------+
+   ```
+
+2. **仪表盘界面**
+   ```
+   +----------------------------------+
+   | 实时仪表盘                        |
+   +----------------------------------+
+   | 扫描进度:                         |
+   | [==========] 100%                |
+   |                                  |
+   | 漏洞统计:                         |
+   | 严重: 5  高危: 12                 |
+   | 中危: 23 低危: 45                 |
+   |                                  |
+   | +-------------+  +-------------+ |
+   | | 3D漏洞热图   |  | 漏洞类型分布 | |
+   | |             |  |             | |
+   | +-------------+  +-------------+ |
+   +----------------------------------+
+   ```
+
+3. **漏洞详情界面**
+   ```
+   +----------------------------------+
+   | 漏洞详情                          |
+   +----------------------------------+
+   | 筛选: [严重] [高危] [中危] [低危]  |
+   | 文件: [输入筛选词]                |
+   +----------------------------------+
+   | ID | 严重性 | 文件 | 规则         |
+   |----+-------+------+-------------|
+   | 1  | 严重   | a.js | SQL注入      |
+   | 2  | 高危   | b.py | XSS漏洞      |
+   +----------------------------------+
+   | 代码预览:                         |
+   | function query(user_input) {     |
+   |   db.execute(user_input);        |
+   | }                                |
+   +----------------------------------+
+   ```
+
+## 功能特点
+
+- **交互式3D可视化**展示漏洞热点
+- **实时扫描**并监控进度
+- **基于规则的检测**识别安全漏洞
+- **多线程扫描引擎**提供高性能
+- **详细报告**包含代码片段和严重性信息
+- **跨平台支持** Windows、macOS和Linux
+
+## 技术实现细节
+
+### 使用的Rust框架和库
+
+- **egui/eframe**: 用于构建高性能、即时模式的GUI界面
+  - 即时模式GUI设计模式，每帧重新构建整个UI
+  - 支持响应式布局和自定义控件
+  - 内置主题支持（亮色/暗色模式）
+- **tokio**: 异步运行时，用于处理并发操作
+  - 多线程扫描引擎基于tokio的工作窃取调度器
+  - 异步网络通信用于规则更新和报告上传
+- **wgpu**: 跨平台GPU抽象层，用于3D可视化渲染
+  - 支持Metal (macOS)、Vulkan (Linux/Windows)和DirectX (Windows)
+- **rfd**: 用于显示原生文件选择对话框
+- **serde**: 用于序列化/反序列化配置和报告数据
+
+### 架构设计
+
+```
++------------------+     +------------------+     +------------------+
+|      UI层        |     |     业务逻辑层    |     |      数据层      |
+|  (egui/eframe)   |<--->|  (scanner/rules) |<--->| (config/report)  |
++------------------+     +------------------+     +------------------+
+        ^                        ^                        ^
+        |                        |                        |
+        v                        v                        v
++------------------+     +------------------+     +------------------+
+|    可视化组件     |     |    网络通信层     |     |    存储层       |
+| (visualization)  |     |    (network)     |     |  (filesystem)   |
++------------------+     +------------------+     +------------------+
+```
+
+## 系统要求
+
+- Rust 1.70.0或更高版本
+- 平台特定的GUI渲染依赖（macOS上的Metal，Linux/Windows上的Vulkan）
+- 可选：Hyperscan库用于正则表达式加速
+
+## 安装指南
+
+### 安装Rust
+
+如果您尚未安装Rust，可以使用rustup进行安装：
 
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-### Install Dependencies
+### 安装依赖
 
-#### Hyperscan (Optional but Recommended)
+#### Hyperscan（可选但推荐）
 
-Hyperscan provides significant performance improvements for pattern matching:
+Hyperscan为模式匹配提供显著的性能改进：
 
 **macOS:**
 ```sh
@@ -50,82 +168,222 @@ sudo apt-get install libhyperscan-dev
 sudo dnf install hyperscan-devel
 ```
 
-### Build and Run
+### 构建和运行
 
-Clone the repository and build the application:
+克隆仓库并构建应用程序：
 
 ```sh
 git clone https://github.com/your-organization/sdchat-sc.git
 cd SDChat-SC/Desktop
 ```
 
-#### Standard Build (without Hyperscan):
+#### 标准构建（不使用Hyperscan）：
 
 ```sh
 cargo build --release
 ```
 
-#### Build with Hyperscan acceleration:
+#### 使用Hyperscan加速构建：
 
 ```sh
 cargo build --release --features hyperscan_engine
 ```
 
-#### Run the application:
+#### 运行应用程序：
 
 ```sh
 cargo run --release
 ```
 
-## Usage
+### 交叉编译
 
-1. **Select a directory or project** to scan using the "Target Path" section
-2. **Choose rule sets** to apply during scanning
-3. **Click "Start Scan"** to begin the security analysis
-4. View results in the **Dashboard** (real-time) and **Vulnerability Details** tabs
-5. Export reports in various formats (JSON, HTML, Markdown, PDF)
+我们提供了用于交叉编译到不同平台的脚本：
 
-## Configuration
+#### 前提条件
 
-The application stores configuration in the following locations:
+首先，确保您已安装了相应的 Rust 目标平台：
+
+```bash
+rustup target add x86_64-pc-windows-msvc
+rustup target add x86_64-unknown-linux-gnu
+rustup target add x86_64-apple-darwin
+```
+
+#### 使用自动化脚本
+
+- **所有平台**：`./build_all.sh`（在 macOS 或 Linux 上运行）
+- **Windows**：`./package_windows.ps1`（在 Windows 上运行）
+- **Linux**：`./package_linux.sh`（在 Linux 上运行）
+- **macOS**：`./package_macos.sh`（在 macOS 上运行）
+
+这些脚本会自动构建应用程序并创建可分发的包，包括必要的资源文件和文档。
+
+#### 手动交叉编译
+
+您也可以手动进行交叉编译：
+
+**Windows 目标**：
+```bash
+RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-pc-windows-msvc --features file_dialog,static_link
+```
+
+**Linux 目标**：
+```bash
+RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-unknown-linux-gnu --features file_dialog,static_link
+```
+
+**macOS 目标**：
+```bash
+cargo build --release --target x86_64-apple-darwin --features file_dialog
+```
+
+编译后的二进制文件将位于 `target/<target-platform>/release/` 目录中。
+
+## 3D可视化实现
+
+SDChat桌面客户端的一个突出特点是其交互式3D漏洞热图可视化，这是通过Rust原生实现的：
+
+### 技术实现
+
+- **3D渲染引擎**: 使用wgpu库实现GPU加速的3D渲染
+- **相机系统**: 实现了可交互的3D相机，支持旋转、缩放和平移
+- **热点映射**: 将代码库结构映射到3D空间中，漏洞密集区域显示为热点
+- **交互式选择**: 用户可以点击热点查看详细信息
+
+### 可视化效果
+
+```
+    严重性颜色映射
+    +----------------+
+    | 严重  ●        |
+    | 高危  ●        |
+    | 中危  ●        |
+    | 低危  ●        |
+    +----------------+
+          ^
+          |
+    +-----+------+
+    |            |
+    |   [3D空间]  |
+    |   热点分布  |
+    |            |
+    +------------+
+```
+
+- **颜色编码**: 不同严重级别的漏洞使用不同颜色表示
+- **大小编码**: 热点大小表示漏洞密度
+- **深度编码**: 3D空间中的位置反映代码结构层次
+
+## 使用方法
+
+### 基本操作流程
+
+1. **启动应用程序**：
+   ```bash
+   cd SDChat-SC/Desktop
+   cargo run --release
+   ```
+
+2. **配置扫描**：
+   - 在"扫描配置"选项卡中，点击"选择目录"按钮选择要扫描的项目
+   - 勾选要应用的安全规则（可点击"更新规则"获取最新规则集）
+   - 点击"开始扫描"按钮启动分析
+
+3. **查看实时进度**：
+   - 切换到"仪表盘"选项卡查看扫描进度和实时统计
+   - 观察底部状态栏中的文件计数、规则匹配数和已用时间
+
+4. **分析结果**：
+   - 在"漏洞详情"选项卡中查看所有发现的安全问题
+   - 使用严重性过滤器和文件过滤器缩小结果范围
+   - 点击任何漏洞查看相关代码片段和详细说明
+
+5. **交互式探索**：
+   - 在3D热图中旋转和缩放以探索漏洞分布
+   - 点击热点查看特定文件中的漏洞详情
+
+6. **导出报告**：
+   - 点击"导出"按钮以各种格式保存报告（JSON、HTML、Markdown、PDF）
+   - 可选择上传报告到服务器进行团队共享和历史跟踪
+
+## 服务器交互
+
+桌面客户端与SDChat安全扫描器服务器进行通信，用于以下操作：
+
+### 规则管理
+
+- **规则更新**：客户端定期检查服务器上的规则更新
+- **规则下载**：当有更新可用时，客户端下载最新的规则集
+- **规则激活**：客户端应用最新规则进行扫描操作
+
+使用的API端点：
+- `GET /rules/active` - 获取当前活动的规则集
+- `GET /rules/<id>` - 通过ID获取特定规则集
+
+### 报告提交
+
+- **报告上传**：完成扫描后，可以将报告上传到服务器
+- **报告检索**：可以查看和下载之前上传的报告
+
+使用的API端点：
+- `POST /reports` - 上传新的扫描报告
+- `GET /reports/<id>` - 通过ID检索特定报告
+
+### 身份验证
+
+客户端使用API密钥进行服务器通信：
+- 所有请求中都包含`X-API-Key`头部的API密钥
+- 也支持JWT身份验证用于更高级的操作
+
+### 网络配置
+
+`network.rs`中的`NetworkClient`类处理所有服务器通信，具有以下特性：
+- 可配置的超时和重试逻辑
+- 可选的代理支持
+- TLS证书验证
+- 自定义用户代理标识
+
+## 配置
+
+应用程序在以下位置存储配置：
 
 - **Windows**: `%APPDATA%\SDChat-Scanner\config.json`
 - **macOS**: `~/Library/Application Support/SDChat-Scanner/config.json`
 - **Linux**: `~/.config/sdchat-scanner/config.json`
 
-Key configuration options:
+主要配置选项：
 
-- **Server URL**: API endpoint for rule updates and report submission
-- **Thread Count**: Number of parallel scanning threads (default: number of CPU cores)
-- **Ignore Patterns**: Regular expressions for files/directories to ignore
-- **API Key**: Authentication key for server communication
-- **Proxy URL**: Optional HTTP proxy for server communication
-- **Network Timeout**: Connection timeout in seconds (default: 30)
-- **Certificate Validation**: Enable/disable TLS certificate validation
+- **服务器URL**：规则更新和报告提交的API端点
+- **线程数**：并行扫描线程数（默认：CPU核心数）
+- **忽略模式**：用于忽略文件/目录的正则表达式
+- **API密钥**：服务器通信的身份验证密钥
+- **代理URL**：可选的HTTP代理用于服务器通信
+- **网络超时**：连接超时时间（秒）（默认：30）
+- **证书验证**：启用/禁用TLS证书验证
 
-## Troubleshooting
+## 故障排除
 
-### Common Issues
+### 常见问题
 
-#### Missing Hyperscan Library
+#### 缺少Hyperscan库
 
-If you see an error about missing `libhs`:
+如果您看到关于缺少`libhs`的错误：
 
-1. Install Hyperscan using the instructions above
-2. Set the PKG_CONFIG_PATH environment variable if needed:
+1. 使用上述说明安装Hyperscan
+2. 如果需要，设置PKG_CONFIG_PATH环境变量：
    ```sh
    export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
    ```
-3. Alternatively, build without Hyperscan: `cargo build --release`
+3. 或者，不使用Hyperscan构建：`cargo build --release`
 
-#### GPU Rendering Issues
+#### GPU渲染问题
 
-If you encounter graphics rendering problems:
+如果遇到图形渲染问题：
 
-1. Try setting the environment variable: `WGPU_BACKEND=vulkan` (or `metal` on macOS)
-2. Update your graphics drivers
-3. Run with software rendering: `WGPU_POWER_PREF=low cargo run`
+1. 尝试设置环境变量：`WGPU_BACKEND=vulkan`（或在macOS上使用`metal`）
+2. 更新图形驱动程序
+3. 使用软件渲染运行：`WGPU_POWER_PREF=low cargo run`
 
-## License
+## 许可证
 
-Copyright © 2023 SDChat Security Scanner Team. All rights reserved.
+版权所有 © 2023 SDChat安全扫描器团队。保留所有权利。

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use chrono::{DateTime, Utc};
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -20,16 +21,26 @@ pub struct Config {
 /// Server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
+    /// Base URL for server API
+    pub base_url: String,
     /// Server URL for rule updates
     pub rule_server_url: String,
     /// Server URL for report submission
     pub report_server_url: String,
+    /// Username for authentication
+    pub username: String,
+    /// Password for authentication
+    pub password: String,
     /// API key for server authentication
     pub api_key: Option<String>,
     /// Enable automatic rule updates
     pub auto_update_rules: bool,
+    /// Enable automatic report upload after scan completion
+    pub auto_upload_reports: bool,
     /// Last rule update timestamp
     pub last_rule_update: Option<String>,
+    /// Scan history with upload status
+    pub scan_history: Vec<ScanHistoryEntry>,
 }
 
 /// Scanner configuration
@@ -88,12 +99,20 @@ impl Default for Config {
 
 impl Default for ServerConfig {
     fn default() -> Self {
+        // 默认基础URL
+        let base_url = "http://127.0.0.1:5000/api/v1".to_string();
+
         Self {
-            rule_server_url: "https://rules.sdchat-scanner.com/api/v1/rules".to_string(),
-            report_server_url: "https://reports.sdchat-scanner.com/api/v1/reports".to_string(),
+            base_url: base_url.clone(),
+            rule_server_url: format!("{}/rules", base_url),
+            report_server_url: format!("{}/reports/upload", base_url),
+            username: "admin".to_string(),
+            password: "admin123".to_string(),
             api_key: None,
             auto_update_rules: true,
+            auto_upload_reports: false,
             last_rule_update: None,
+            scan_history: Vec::new(),
         }
     }
 }
@@ -147,7 +166,36 @@ impl Default for PathsConfig {
     }
 }
 
+/// Scan history entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanHistoryEntry {
+    /// Scan timestamp
+    pub timestamp: DateTime<Utc>,
+    /// Scan target path
+    pub target_path: PathBuf,
+    /// Report file path
+    pub report_path: Option<PathBuf>,
+    /// Upload status
+    pub upload_status: UploadStatus,
+    /// Server response (report ID if successful)
+    pub server_response: Option<String>,
+}
+
+/// Upload status for scan reports
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UploadStatus {
+    /// Not uploaded
+    NotUploaded,
+    /// Upload in progress
+    Uploading,
+    /// Upload successful
+    Uploaded,
+    /// Upload failed
+    Failed(String),
+}
+
 /// Configuration manager
+#[derive(Clone)]
 pub struct ConfigManager {
     config: Config,
     config_path: PathBuf,
@@ -159,63 +207,63 @@ impl ConfigManager {
         let config_dir = dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join("sdchat-scanner");
-            
+
         let config_path = config_dir.join("config.json");
-        
+
         // Create config directory if it doesn't exist
         if !config_dir.exists() {
             if let Err(e) = fs::create_dir_all(&config_dir) {
                 warn!("Failed to create config directory: {}", e);
             }
         }
-        
+
         Self {
             config: Config::default(),
             config_path,
         }
     }
-    
+
     /// Load configuration from file
     pub fn load(&mut self) -> Result<()> {
         if !self.config_path.exists() {
             info!("Config file not found, using defaults");
             return Ok(());
         }
-        
+
         let config_str = fs::read_to_string(&self.config_path)?;
         self.config = serde_json::from_str(&config_str)?;
         info!("Config loaded from {}", self.config_path.display());
-        
+
         Ok(())
     }
-    
+
     /// Save configuration to file
     pub fn save(&self) -> Result<()> {
         let config_str = serde_json::to_string_pretty(&self.config)?;
         fs::write(&self.config_path, config_str)?;
         info!("Config saved to {}", self.config_path.display());
-        
+
         Ok(())
     }
-    
+
     /// Get a reference to the configuration
     pub fn config(&self) -> &Config {
         &self.config
     }
-    
+
     /// Get a mutable reference to the configuration
     pub fn config_mut(&mut self) -> &mut Config {
         &mut self.config
     }
-    
+
     /// Add a path to recent scans
     pub fn add_recent_scan(&mut self, path: PathBuf) {
         // Remove if already exists
         self.config.paths.recent_scans.retain(|p| p != &path);
-        
+
         // Add to front
         self.config.paths.recent_scans.insert(0, path);
-        
+
         // Limit to 10 recent scans
         if self.config.paths.recent_scans.len() > 10 {
             self.config.paths.recent_scans.truncate(10);

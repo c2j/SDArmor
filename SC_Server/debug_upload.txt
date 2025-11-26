@@ -1,0 +1,2 @@
+  # 打印上传响应以便调试
+  print_message $YELLOW "上传响应: $upload_response"

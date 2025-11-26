@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}上传规则集 - SDChat 安全扫描器{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">上传规则集</h1>
+        <div>
+            <a href="{{ url_for('main.rules') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> 返回规则列表
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">上传新规则集</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">规则集名称</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">描述</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="ruleset_file" class="form-label">规则集文件 (JSON)</label>
+                            <input class="form-control" type="file" id="ruleset_file" name="ruleset_file" accept=".json" required>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="activate" name="activate">
+                            <label class="form-check-label" for="activate">上传后立即激活</label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">上传规则集</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">规则集格式说明</h6>
+                </div>
+                <div class="card-body">
+                    <p>规则集必须是有效的JSON文件，包含以下结构：</p>
+                    <pre class="bg-light p-3 rounded"><code>{
+  "version": "1.0.0",
+  "file_types": [
+    {
+      "name": "JavaScript",
+      "identifiers": [
+        {
+          "type": "extension",
+          "pattern": "\\.js$"
+        }
+      ],
+      "patterns": [
+        {
+          "id": "js-001",
+          "description": "不安全的eval使用",
+          "severity": "high",
+          "regex": "eval\\(.*\\)"
+        }
+      ]
+    }
+  ]
+}</code></pre>
+                    <p class="mt-3">每个文件类型可以包含多个标识符和多个模式。</p>
+                    <p>严重性级别必须是以下之一：</p>
+                    <ul>
+                        <li><span class="badge bg-danger">critical</span> - 严重漏洞</li>
+                        <li><span class="badge bg-warning text-dark">high</span> - 高危漏洞</li>
+                        <li><span class="badge bg-primary">medium</span> - 中危漏洞</li>
+                        <li><span class="badge bg-info text-dark">low</span> - 低危漏洞</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
