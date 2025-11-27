@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
+use auth_client::AuthClient;
 
 mod scanner;
 mod ui;
@@ -16,6 +17,9 @@ mod config;
 mod utils;
 mod visualization;
 mod localization;
+mod auth_client;
+mod rules_client;
+mod reports_client;
 
 
 
@@ -46,6 +50,19 @@ struct ScannerApp {
     uploading_report: bool,
     upload_status: Option<String>,
     last_rule_check: Option<std::time::Instant>,
+    auth_client: Option<Arc<AuthClient>>,
+    rules_client: Option<Arc<rules_client::RulesClient>>,
+    reports_client: Option<Arc<reports_client::ReportsClient>>,
+    show_login_dialog: bool,
+    login_username: String,
+    login_password: String,
+    login_error: Option<String>,
+    register_username: String,
+    register_email: String,
+    register_password: String,
+    register_error: Option<String>,
+    show_register_dialog: bool,
+    show_settings_dialog: bool,
 }
 
 impl Default for ScannerApp {
@@ -68,6 +85,38 @@ impl Default for ScannerApp {
         // 从配置中加载默认扫描目录
         let default_scan_path = config_manager.config().paths.default_scan_dir.clone();
 
+        // Initialize auth client
+        let config_manager_arc = Arc::new(config_manager);
+        let auth_client = match AuthClient::new(config_manager_arc.clone()) {
+            Ok(client) => Some(Arc::new(client)),
+            Err(e) => {
+                warn!("Failed to initialize auth client: {}", e);
+                None
+            }
+        };
+
+        // Initialize rules client if auth is available
+        let rules_client = auth_client.as_ref().and_then(|auth| {
+            match rules_client::RulesClient::new(Arc::clone(auth)) {
+                Ok(client) => Some(Arc::new(client)),
+                Err(e) => {
+                    warn!("Failed to initialize rules client: {}", e);
+                    None
+                }
+            }
+        });
+
+        // Initialize reports client if auth is available
+        let reports_client = auth_client.as_ref().and_then(|auth| {
+            match reports_client::ReportsClient::new(Arc::clone(auth)) {
+                Ok(client) => Some(Arc::new(client)),
+                Err(e) => {
+                    warn!("Failed to initialize reports client: {}", e);
+                    None
+                }
+            }
+        });
+
         Self {
             scan_path: default_scan_path,
             selected_rules: Vec::new(),
@@ -85,13 +134,24 @@ impl Default for ScannerApp {
             heatmap: None,
             selected_hotspot: None,
             localization: localization::Localization::default(),
-            config_manager,
+            config_manager: config_manager_arc,
             scan_start_time: None,
             files_scanned: 0,
             rules_matched: 0,
             uploading_report: false,
             upload_status: None,
             last_rule_check: None,
+            auth_client,
+            show_login_dialog: false,
+            login_username: String::new(),
+            login_password: String::new(),
+            login_error: None,
+            register_username: String::new(),
+            register_email: String::new(),
+            register_password: String::new(),
+            register_error: None,
+            show_register_dialog: false,
+            show_settings_dialog: false,
         }
     }
 }
@@ -189,9 +249,90 @@ impl App for ScannerApp {
             }
         });
 
+        // 认证对话框
+        if self.show_login_dialog {
+            self.render_login_dialog(ctx);
+        }
+
+        if self.show_register_dialog {
+            self.render_register_dialog(ctx);
+        }
+
+        if self.show_settings_dialog {
+            self.render_settings_dialog(ctx);
+        }
+
         // 底部状态栏
         TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
+                // Menu button
+                if ui.button("☰").clicked() {
+                    // Show menu options
+                    ui.menu_button("登录", || {
+                        self.show_login_dialog = true;
+                        self.show_register_dialog = false;
+                        self.show_settings_dialog = false;
+                    });
+                    if let Some(auth_client) = &self.auth_client {
+                        match self.runtime.block_on(async {
+                            auth_client.is_authenticated().await
+                        }) {
+                            Ok(_) => {
+                                ui.menu_button("规则管理", || {
+                                    self.show_rules_management_dialog(ctx);
+                                });
+                                ui.menu_button("报告管理", || {
+                                    self.show_reports_management_dialog(ctx);
+                                });
+                                ui.menu_button("退出登录", || {
+                                    match self.runtime.block_on(async {
+                                        auth_client.logout().await
+                                    }) {
+                                        Ok(_) => {
+                                            info!("User logged out successfully");
+                                        }
+                                        Err(e) => {
+                                            error!("Logout failed: {}", e);
+                                        }
+                                    }
+                                });
+                            }
+                            Err(_) => {
+                                ui.menu_button("登录", || {
+                                    self.show_login_dialog = true;
+                                    self.show_register_dialog = false;
+                                    self.show_settings_dialog = false;
+                                });
+                            }
+                        }
+                    });
+                }
+
+                // Authentication status indicator
+                if let Some(auth_client) = &self.auth_client {
+                    match self.runtime.block_on(async {
+                        auth_client.is_authenticated().await
+                    }) {
+                        Ok(true) => {
+                            ui.label(egui::RichText::new("●").color(egui::Color32::GREEN));
+                            ui.label(self.localization.get("logged_in"));
+                        }
+                        Ok(false) => {
+                            ui.label(egui::RichText::new("○").color(egui::Color32::RED));
+                            ui.label(self.localization.get("not_logged_in"));
+                        }
+                        Err(_) => {
+                            ui.label(egui::RichText::new("?").color(egui::Color32::YELLOW));
+                            ui.label(self.localization.get("auth_error"));
+                        }
+                    }
+                } else {
+                    ui.label(egui::RichText::new("?").color(egui::Color32::YELLOW));
+                    ui.label(self.localization.get("auth_not_initialized"));
+                }
+
+                ui.add_space(20.0);
+
                 if self.scan_in_progress {
                     ui.spinner();
 
